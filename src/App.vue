@@ -1,68 +1,103 @@
 <template>
-	<div id="app">
+	<div id="app" :class="weatherClass">
 		<div class="main">
 			<div class="search-box">
-				<input
-					@keyup.enter="fetchWeather"
-					v-model="city"
-					type="text"
-					class="search-input"
-					placeholder="Search..."
-				/>
+				<input @keyup.enter="searchWeather" v-model="city" type="text" class="search-input"
+					placeholder="Search..." />
 			</div>
-      <spinner :is-loading="loading"/>
-      <div v-if="!loading && weatherDataCurrent" class="weather-wrap">
+			<!--  -->
+			<spinner class="spiner" :is-loading="loading" />
+			<div v-if="!loading && weatherData" class="weather-wrap">
 				<div class="location-box">
 					<div class="location">
-						{{ weatherDataLocation.name }}, {{ weatherDataLocation.country }}
+						{{ weatherData.name}}, {{ weatherData.sys.country}}
 					</div>
 					<div class="date">
-						<!-- {{ getFormattedDate(weatherDataCurrent.last_updated_epoch) }} -->
+						{{formatDate( weatherData.dt) }}
 					</div>
 				</div>
 
 				<div class="weather-box">
-					<div class="temperature">{{ weatherDataCurrent.temp_c }} °C</div>
-					<!-- <div class="weather">{{ weatherDataCurrent.condition.text }}</div> -->
+					<div class="temperature">{{ convertToCelsius(weatherData.main.temp)}}°C</div>
+					<div class="weather">
+						<div>
+							<p>{{weatherData.weather[0].description}}</p>
+							<img :src="weatherIcon" alt="Weather Icon" />
+						</div>
+						<div class="weather-cards">
+							<div>
+								<p>MAX</p>
+								<P>{{convertToCelsius(weatherData.main.temp_max)}}</P>
+							</div>
+							<div>
+								<p>MIN</p>
+								<p>{{convertToCelsius(weatherData.main.temp_min)}}</p>
+							</div>
+							<div>
+								<p>SUNRISE</p>
+								<P>{{getTime(weatherData.sys.sunrise)}}</P>
+							</div>
+							<div><p>SUNSET</p>
+							<p>{{getTime(weatherData.sys.sunset)}}</p></div>
+						</div>
+					</div>
 				</div>
 			</div>
-			
+			<!--  -->
 		</div>
 	</div>
 </template>
 
 <script>
-import axios from "axios";
+import { mapActions, mapState } from "vuex";
 import spinner from "./components/spinner.vue";
 
 export default {
 	name: "App",
 	data() {
 		return {
-			apiKey: "b4a44c41b04e4f5ca87155314231708",
-			urlBase: " http://api.weatherapi.com/v1",
 			city: "",
-			weatherDataLocation: {},
-			weatherDataCurrent: {},
       loading: false
 		};
 	},
   components: {
     spinner
   },
+  computed:{
+	...mapState(["weatherData"]),
+	weatherClass() {
+      const weatherType = this.weatherData.weather[0].main.toLowerCase();
+      return `weather-${weatherType}`;
+    },
+	weatherIcon() {
+      const weatherType = this.weatherData.weather[0].main.toLowerCase() // Припустимо, що ви зберігаєте іконку у властивості condition.icon
+      return require(`./assets/svg/${weatherType}.svg`); // Шлях до іконки відносно папки src
+    },
+  },
 	methods: {
-		async fetchWeather() {
-      this.loading = true
-			const response = await axios.get(
-				`${this.urlBase}/current.json?key=${this.apiKey}&q=${this.city}`
-			);
-
-			this.weatherDataLocation = response.data.location;
-			this.weatherDataCurrent = response.data.current;
-      setTimeout(() => {
-        this.loading = false
-      }, 2000)
-		},
+		...mapActions(['fetchWeather']),
+ async searchWeather(){
+	try{
+		await this.fetchWeather(this.city)
+		console.log(this.weatherData);
+	}catch(error){
+		console.error("Error fetching weather:", error);
+	}
+ },
+ formatDate(epochTime) {
+      const date = new Date(epochTime * 1000); 
+      const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+      return date.toLocaleDateString('en-US', options);
+    },
+	getTime(timestamp){
+	const date = new Date(timestamp * 1000);
+      const hours = date.getHours();
+      const minutes = date.getMinutes();
+      return `${hours}:${minutes}`;
+	},
+	convertToCelsius(kelvin){
+return (kelvin - 273.15).toFixed(0)
+	},
 	},
 };
 </script>
@@ -74,25 +109,45 @@ export default {
 	box-sizing: border-box;
 }
 
+img {
+	width: 200px;
+	height: 200px;
+}
+
 body {
 	font-family: "Gill Sans", "Gill Sans MT", Calibri, "Trebuchet MS", sans-serif;
 }
 
+/* backgrounds */
+/* .weather-clear {
+	background-image: url(./assets/bg/clear.jpg);
+}
+
+.weather-clouds {
+	background-image: url(./assets/bg/clouds.jpg);
+}
+
+.weather-rain {
+	background-image: url(./assets/bg/thunderstorm.jpg);
+}
+
+.weather-thunderstorm {
+	background-image: url(./assets/bg/thunderstorm.jpg);
+} */
+
 #app {
-	background: url(./assets/background.jpg);
+	background: #a2b1c9e9;
 	background-size: cover;
 	background-position: bottom;
-	text-replace: 0.4s;
+	transition: 0.7s;
 }
 
 .main {
 	min-height: 100vh;
 	padding: 20px;
-	background: linear-gradient(
-		to bottom,
-		rgba(0, 0, 0, 0.25),
-		rgba(0, 0, 0, 0.35)
-	);
+	background: linear-gradient(to bottom,
+			rgba(18, 18, 18, 0.259),
+			rgba(255, 255, 255, 0.582));
 }
 
 .search-box {
@@ -104,7 +159,7 @@ body {
 	display: block;
 	width: 100%;
 	padding: 15px;
-	color: #313131;
+	color: #2a2828b3;
 	font-size: 20px;
 	appearance: none;
 	border: none;
@@ -117,9 +172,6 @@ body {
 
 .search-input:focus {
 	background-color: rgba(255, 255, 255, 0.6);
-}
-
-.weather-wrap {
 }
 
 .location-box .location {
@@ -140,6 +192,10 @@ body {
 
 .weather-box {
 	text-align: center;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+
 }
 
 .weather-box .temperature {
@@ -157,9 +213,25 @@ body {
 }
 
 .weather-box .weather {
+	max-width: 500px;
+
+	background-color: rgba(255, 255, 255, 0.2);
+	border-radius: 20px;
+	box-shadow: 3px 6px rgba(0, 0, 0, 0.2);
+	padding: 20px 40px;
+
 	color: #f0eeee;
 	font-size: 48px;
 	font-weight: 700;
 	text-shadow: 3px 6px rgba(0, 0, 0, 0.2);
+}
+
+.weather-cards {
+	font-size: 16px;
+	font-weight: 600;
+	/* border: 1px solid gray; */
+
+	display: flex;
+	justify-content: space-between;
 }
 </style>
