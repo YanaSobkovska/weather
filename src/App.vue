@@ -2,43 +2,79 @@
 	<div id="app" :class="weatherClass">
 		<div class="main">
 			<div class="search-box">
-				<input @keyup.enter="searchWeather" v-model="city" type="text" class="search-input"
-					placeholder="Search..." />
+				<input
+					@keyup.enter="searchWeather(city)"
+					@input="handleSearchInput"
+					v-model="city"
+					type="text"
+					class="search-input"
+					placeholder="Search..."
+				/>
+				<SearchCityList />
 			</div>
-			<!--  -->
-			<spinner class="spiner" :is-loading="loading" />
-			<div v-if="!loading && weatherData" class="weather-wrap">
+			<div v-if="!loading || weatherData" class="weather-wrap">
 				<div class="location-box">
 					<div class="location">
-						{{ weatherData.name}}, {{ weatherData.sys.country}}
+						{{ weatherData.name }},
+						{{ weatherData.sys.country }}
 					</div>
 					<div class="date">
-						{{formatDate( weatherData.dt) }}
+						{{ formatDate(weatherData.dt) }}
 					</div>
 				</div>
 
 				<div class="weather-box">
-					<div class="temperature">{{ convertToCelsius(weatherData.main.temp)}}°C</div>
+					<div class="temperature">
+						{{ convertToCelsius(weatherData.main.temp) }}°C
+					</div>
 					<div class="weather">
 						<div>
-							<p>{{weatherData.weather[0].description}}</p>
+							<p>
+								{{ weatherData.weather[0].description }}
+							</p>
 							<img :src="weatherIcon" alt="Weather Icon" />
 						</div>
 						<div class="weather-cards">
-							<div>
-								<p>MAX</p>
-								<P>{{convertToCelsius(weatherData.main.temp_max)}}</P>
+							<div class="card-box">
+								<div class="card">
+									<p class="card-header">MAX</p>
+									<P>{{ convertToCelsius(weatherData.main.temp_max) }}</P>
+								</div>
+								<div class="card">
+									<p class="card-header">MIN</p>
+									<p>
+										{{ convertToCelsius(weatherData.main.temp_min) }}
+									</p>
+								</div>
+								<div class="card">
+									<p class="card-header">SUNRISE</p>
+									<P>{{ getTime(weatherData.sys.sunrise) }}</P>
+								</div>
+								<div class="card">
+									<p class="card-header">SUNSET</p>
+									<p>
+										{{ getTime(weatherData.sys.sunset) }}
+									</p>
+								</div>
 							</div>
-							<div>
-								<p>MIN</p>
-								<p>{{convertToCelsius(weatherData.main.temp_min)}}</p>
+							<div class="card-box">
+								<div class="card">
+									<p class="card-header">WIND SPEED</p>
+									<p>{{ weatherData.wind.speed }}km/h</p>
+								</div>
+								<div class="card">
+									<p class="card-header">VISIBILITY</p>
+									<p>
+										{{ weatherData.visibility }}
+									</p>
+								</div>
+								<div class="card">
+									<p class="card-header">PREASURE</p>
+									<p>
+										{{ weatherData.main.pressure }}
+									</p>
+								</div>
 							</div>
-							<div>
-								<p>SUNRISE</p>
-								<P>{{getTime(weatherData.sys.sunrise)}}</P>
-							</div>
-							<div><p>SUNSET</p>
-							<p>{{getTime(weatherData.sys.sunset)}}</p></div>
 						</div>
 					</div>
 				</div>
@@ -50,54 +86,68 @@
 
 <script>
 import { mapActions, mapState } from "vuex";
-import spinner from "./components/spinner.vue";
+import SearchCityList from "@/components/SearchCityList.vue";
 
 export default {
 	name: "App",
+	components: {
+		SearchCityList,
+	},
 	data() {
 		return {
 			city: "",
-      loading: false
+			loading: false,
+			defaultCity: "london",
 		};
 	},
-  components: {
-    spinner
-  },
-  computed:{
-	...mapState(["weatherData"]),
-	weatherClass() {
-      const weatherType = this.weatherData.weather[0].main.toLowerCase();
-      return `weather-${weatherType}`;
-    },
-	weatherIcon() {
-      const weatherType = this.weatherData.weather[0].main.toLowerCase() // Припустимо, що ви зберігаєте іконку у властивості condition.icon
-      return require(`./assets/svg/${weatherType}.svg`); // Шлях до іконки відносно папки src
-    },
-  },
+	async created() {
+		await this.searchWeather(this.defaultCity);
+	},
+	computed: {
+		...mapState(["weatherData", "apiKey", "urlBase"]),
+		weatherClass() {
+			const weatherType = this.weatherData.weather[0].main.toLowerCase();
+			return `weather-${weatherType}`;
+		},
+		weatherIcon() {
+			const weatherType = this.weatherData.weather[0].main.toLowerCase();
+			return require(`./assets/svg/${weatherType}.svg`); // Шлях до іконки відносно папки src
+		},
+	},
 	methods: {
-		...mapActions(['fetchWeather']),
- async searchWeather(){
-	try{
-		await this.fetchWeather(this.city)
-		console.log(this.weatherData);
-	}catch(error){
-		console.error("Error fetching weather:", error);
-	}
- },
- formatDate(epochTime) {
-      const date = new Date(epochTime * 1000); 
-      const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-      return date.toLocaleDateString('en-US', options);
-    },
-	getTime(timestamp){
-	const date = new Date(timestamp * 1000);
-      const hours = date.getHours();
-      const minutes = date.getMinutes();
-      return `${hours}:${minutes}`;
-	},
-	convertToCelsius(kelvin){
-return (kelvin - 273.15).toFixed(0)
-	},
+		...mapActions(["fetchWeather", "handleCityInput"]),
+		async searchWeather(city) {
+			try {
+				await this.fetchWeather(city);
+			} catch (error) {
+				console.error("Error fetching weather:", error);
+			}
+			this.city = "";
+		},
+
+		handleSearchInput() {
+			console.log(this.city);
+			this.handleCityInput(this.city);
+		},
+		formatDate(epochTime) {
+			const date = new Date(epochTime * 1000);
+			const options = {
+				weekday: "long",
+				year: "numeric",
+				month: "long",
+				day: "numeric",
+			};
+			return date.toLocaleDateString("en-US", options);
+		},
+		getTime(timestamp) {
+			const date = new Date(timestamp * 1000);
+			const hours = date.getHours();
+			const minutes = date.getMinutes();
+			return `${hours}:${minutes}`;
+		},
+		convertToCelsius(kelvin) {
+			return (kelvin - 273.15).toFixed(0);
+		},
 	},
 };
 </script>
@@ -110,16 +160,21 @@ return (kelvin - 273.15).toFixed(0)
 }
 
 img {
-	width: 200px;
-	height: 200px;
+	max-width: 200px;
 }
 
 body {
 	font-family: "Gill Sans", "Gill Sans MT", Calibri, "Trebuchet MS", sans-serif;
 }
 
+#app {
+	background-size: cover;
+	background-position: bottom;
+	transition: 0.7s;
+}
+
 /* backgrounds */
-/* .weather-clear {
+.weather-clear {
 	background-image: url(./assets/bg/clear.jpg);
 }
 
@@ -128,26 +183,21 @@ body {
 }
 
 .weather-rain {
-	background-image: url(./assets/bg/thunderstorm.jpg);
+	background-image: url(./assets/bg/rain.jpg);
 }
 
 .weather-thunderstorm {
 	background-image: url(./assets/bg/thunderstorm.jpg);
-} */
-
-#app {
-	background: #a2b1c9e9;
-	background-size: cover;
-	background-position: bottom;
-	transition: 0.7s;
 }
 
 .main {
 	min-height: 100vh;
 	padding: 20px;
-	background: linear-gradient(to bottom,
-			rgba(18, 18, 18, 0.259),
-			rgba(255, 255, 255, 0.582));
+	background: linear-gradient(
+		to bottom,
+		rgba(18, 18, 18, 0.259),
+		rgba(255, 255, 255, 0.582)
+	);
 }
 
 .search-box {
@@ -195,7 +245,6 @@ body {
 	display: flex;
 	flex-direction: column;
 	align-items: center;
-
 }
 
 .weather-box .temperature {
@@ -213,11 +262,11 @@ body {
 }
 
 .weather-box .weather {
-	max-width: 500px;
+	max-width: 700px;
 
 	background-color: rgba(255, 255, 255, 0.2);
 	border-radius: 20px;
-	box-shadow: 3px 6px rgba(0, 0, 0, 0.2);
+	box-shadow: 3px 6px rgba(0, 0, 0, 0.253);
 	padding: 20px 40px;
 
 	color: #f0eeee;
@@ -227,11 +276,43 @@ body {
 }
 
 .weather-cards {
+	display: flex;
+	flex-direction: column;
+	row-gap: 20px;
+}
+
+.card-box {
 	font-size: 16px;
 	font-weight: 600;
-	/* border: 1px solid gray; */
-
 	display: flex;
 	justify-content: space-between;
+	align-items: center;
+	column-gap: 20px;
+}
+
+.card {
+	padding: 10px;
+
+	color: #686565;
+	display: flex;
+	flex-direction: column;
+	row-gap: 10px;
+}
+
+.card-header {
+	color: rgb(73, 79, 95);
+}
+
+@media (max-width: 425px) {
+	.weather-cards {
+		flex-direction: row;
+		justify-content: space-between;
+	}
+
+	.card-box {
+		flex-direction: column;
+		justify-content: space-between;
+		align-items: center;
+	}
 }
 </style>
